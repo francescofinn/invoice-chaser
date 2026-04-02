@@ -109,3 +109,73 @@ class DashboardSummary(BaseModel):
     total_paid_this_month: Decimal
     invoice_count_by_status: dict[str, int]
     cash_flow_forecast: list[CashFlowForecastItem]
+
+
+class CollectionCommitmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    invoice_id: int
+    commitment_type: str
+    due_date: date
+    amount: Decimal
+    status: str
+    source: str
+    created_at: datetime
+
+
+class CollectionActivityResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    invoice_id: int
+    activity_type: str
+    title: str
+    body: str | None = None
+    payload_json: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class CollectionCaseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    invoice_id: int
+    status: str
+    risk_level: str | None = None
+    risk_summary: str | None = None
+    next_action_key: str | None = None
+    next_action_label: str | None = None
+    next_action_reason: str | None = None
+    draft_subject: str | None = None
+    draft_body: str | None = None
+    last_client_reply: str | None = None
+    last_reply_classification: str | None = None
+    last_contacted_at: datetime | None = None
+    queued_follow_up_date: date | None = None
+    last_analyzed_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class OperatorQueueItem(BaseModel):
+    invoice: InvoiceResponse
+    client: ClientResponse
+    remaining_amount: Decimal
+    case: CollectionCaseResponse
+    commitments: list[CollectionCommitmentResponse]
+    recent_activity: list[CollectionActivityResponse]
+
+
+class OperatorSendRequest(BaseModel):
+    draft_subject: str | None = Field(default=None, min_length=1)
+    draft_body: str | None = Field(default=None, min_length=1)
+
+
+class OperatorSimulateReplyRequest(BaseModel):
+    reply_text: str = Field(min_length=1)
+
+
+class OperatorSimulateReplyResponse(OperatorQueueItem):
+    forecast_before: list[CashFlowForecastItem]
+    forecast_after: list[CashFlowForecastItem]

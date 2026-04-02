@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import settings
-from routers import clients, dashboard, invoices, webhooks
+from routers import clients, dashboard, invoices, operator, webhooks
 from services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -30,6 +30,7 @@ def create_app(*, start_scheduler_on_startup: bool = True) -> FastAPI:
     app.include_router(clients.router, prefix="/clients", tags=["clients"])
     app.include_router(invoices.router, prefix="/invoices", tags=["invoices"])
     app.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+    app.include_router(operator.router, prefix="/operator", tags=["operator"])
     app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
     return app
