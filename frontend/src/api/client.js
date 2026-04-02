@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/react'
 import { useMemo } from 'react'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'

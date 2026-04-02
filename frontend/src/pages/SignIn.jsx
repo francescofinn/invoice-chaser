@@ -1,4 +1,4 @@
-import { SignIn } from '@clerk/clerk-react'
+import { SignIn } from '@clerk/react'
 
 export default function SignInPage() {
   return (
@@ -7,7 +7,7 @@ export default function SignInPage() {
         <h1 className="text-2xl font-bold text-indigo-600">Invoice Chaser</h1>
         <p className="text-sm text-gray-500 mt-1">Sign in to manage your invoices</p>
       </div>
-      <SignIn routing="path" path="/sign-in" afterSignInUrl="/" />
+      <SignIn />
     </div>
   )
 }

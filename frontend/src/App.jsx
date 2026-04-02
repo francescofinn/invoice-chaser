@@ -1,5 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { Show } from '@clerk/react'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Invoices from './pages/Invoices'
@@ -11,12 +11,12 @@ import SignIn from './pages/SignIn'
 function ProtectedLayout() {
   return (
     <>
-      <SignedIn>
+      <Show when="signed-in">
         <Layout />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
+      </Show>
+      <Show when="signed-out">
+        <Navigate to="/sign-in" replace />
+      </Show>
     </>
   )
 }
