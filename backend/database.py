@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str
     resend_api_key: str
     anthropic_api_key: str
+    clerk_secret_key: str
+    clerk_jwks_url: str
     frontend_url: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
