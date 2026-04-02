@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Invoices from './pages/Invoices'
 import InvoiceDetail from './pages/InvoiceDetail'
 import NewInvoice from './pages/NewInvoice'
+import Clients from './pages/Clients'
 import PaymentPortal from './pages/PaymentPortal'
 import SignIn from './pages/SignIn'
 
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/invoices/new" element={<NewInvoice />} />
         <Route path="/invoices/:id" element={<InvoiceDetail />} />
+        <Route path="/clients" element={<Clients />} />
       </Route>
 
       {/* Auth page */}

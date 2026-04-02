@@ -61,7 +61,14 @@ def generate_follow_up_email(
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
         )
-        return json.loads(_extract_message_text(message))
+        text = _extract_message_text(message).strip()
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = text.split("```", 2)[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.rsplit("```", 1)[0].strip()
+        return json.loads(text)
     except Exception as exc:
         logger.error("AI generation failed: %s", exc)
         template = FALLBACK.get(follow_up_day, FALLBACK[3])

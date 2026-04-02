@@ -78,14 +78,7 @@ def _render_html(
 
         <!-- ── Hero card ──────────────────────────────────────────── -->
         <tr>
-          <td style="background:{hero_bg};border-radius:16px 16px 0 0;
-                     padding:40px 40px 36px;position:relative;overflow:hidden;">
-
-            <!-- Glow blob (purely decorative — ignored by most clients) -->
-            <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;
-                        background:{hero_glow};border-radius:50%;filter:blur(60px);
-                        pointer-events:none;"></div>
-
+          <td style="background:{hero_bg};border-radius:16px 16px 0 0;padding:40px 40px 36px;">
             <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
               <tr>
                 <td valign="top">

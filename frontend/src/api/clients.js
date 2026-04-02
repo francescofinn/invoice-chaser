@@ -27,6 +27,15 @@ export function useCreateClient() {
   })
 }
 
+export function useClientProfile(id) {
+  const api = useApiClient()
+  return useQuery({
+    queryKey: ['clients', id, 'profile'],
+    queryFn: () => api.get(`/clients/${id}/profile`).then((r) => r.data),
+    enabled: !!id,
+  })
+}
+
 export function useUpdateClient() {
   const api = useApiClient()
   const qc = useQueryClient()

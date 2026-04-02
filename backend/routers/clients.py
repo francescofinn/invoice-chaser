@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Client, Invoice
-from schemas import ClientCreate, ClientResponse, ClientUpdate
+from sqlalchemy.orm import joinedload
+from schemas import ClientCreate, ClientResponse, ClientUpdate, ClientWithInvoices
 
 router = APIRouter()
 
@@ -38,6 +39,18 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db)):
 @router.get("/{client_id}", response_model=ClientResponse)
 def get_client(client_id: int, db: Session = Depends(get_db)):
     return _get_client_or_404(db, client_id)
+
+
+@router.get("/{client_id}/profile", response_model=ClientWithInvoices)
+def get_client_profile(client_id: int, db: Session = Depends(get_db)):
+    client = db.scalars(
+        select(Client)
+        .options(joinedload(Client.invoices).joinedload(Invoice.client))
+        .where(Client.id == client_id)
+    ).unique().one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+    return client
 
 
 @router.put("/{client_id}", response_model=ClientResponse)

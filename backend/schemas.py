@@ -97,6 +97,10 @@ class PublicInvoiceResponse(InvoiceResponse):
     stripe_client_secret: str
 
 
+class ClientWithInvoices(ClientResponse):
+    invoices: list[InvoiceResponse] = []
+
+
 class CashFlowForecastItem(BaseModel):
     date: date
     expected_amount: float

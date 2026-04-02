@@ -47,6 +47,7 @@ function UserSection() {
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/invoices', label: 'Invoices', end: false },
+  { to: '/clients', label: 'Clients', end: false },
 ]
 
 export default function Layout() {
