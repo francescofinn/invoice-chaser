@@ -13,11 +13,21 @@ os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_fixture")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_fixture")
 os.environ.setdefault("RESEND_API_KEY", "re_fixture")
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-fixture")
+os.environ.setdefault("CLERK_SECRET_KEY", "sk_clerk_fixture")
+os.environ.setdefault("CLERK_JWKS_URL", "https://example.com/.well-known/jwks.json")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
 
 from database import Base, SessionLocal, engine, get_db
 from main import create_app
-from models import Client, EmailLog, Invoice, Payment
+from models import (
+    Client,
+    CollectionActivity,
+    CollectionCase,
+    CollectionCommitment,
+    EmailLog,
+    Invoice,
+    Payment,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -132,3 +142,89 @@ def create_email_log(
     db_session.commit()
     db_session.refresh(email_log)
     return email_log
+
+
+def create_collection_case(
+    db_session,
+    invoice_id: int,
+    *,
+    status: str = "needs_analysis",
+    risk_level: str | None = None,
+    risk_summary: str | None = None,
+    next_action_key: str | None = None,
+    next_action_label: str | None = None,
+    next_action_reason: str | None = None,
+    draft_subject: str | None = None,
+    draft_body: str | None = None,
+    last_client_reply: str | None = None,
+    last_reply_classification: str | None = None,
+    last_contacted_at=None,
+    queued_follow_up_date=None,
+    last_analyzed_at=None,
+) -> CollectionCase:
+    collection_case = CollectionCase(
+        invoice_id=invoice_id,
+        status=status,
+        risk_level=risk_level,
+        risk_summary=risk_summary,
+        next_action_key=next_action_key,
+        next_action_label=next_action_label,
+        next_action_reason=next_action_reason,
+        draft_subject=draft_subject,
+        draft_body=draft_body,
+        last_client_reply=last_client_reply,
+        last_reply_classification=last_reply_classification,
+        last_contacted_at=last_contacted_at,
+        queued_follow_up_date=queued_follow_up_date,
+        last_analyzed_at=last_analyzed_at,
+    )
+    db_session.add(collection_case)
+    db_session.commit()
+    db_session.refresh(collection_case)
+    return collection_case
+
+
+def create_collection_commitment(
+    db_session,
+    invoice_id: int,
+    *,
+    commitment_type: str = "promise_to_pay",
+    due_date=None,
+    amount: str = "100.00",
+    status: str = "active",
+    source: str = "test",
+) -> CollectionCommitment:
+    commitment = CollectionCommitment(
+        invoice_id=invoice_id,
+        commitment_type=commitment_type,
+        due_date=due_date or date.today() + timedelta(days=7),
+        amount=amount,
+        status=status,
+        source=source,
+    )
+    db_session.add(commitment)
+    db_session.commit()
+    db_session.refresh(commitment)
+    return commitment
+
+
+def create_collection_activity(
+    db_session,
+    invoice_id: int,
+    *,
+    activity_type: str = "note",
+    title: str = "Manual note",
+    body: str = "Test activity",
+    payload_json: dict | None = None,
+) -> CollectionActivity:
+    activity = CollectionActivity(
+        invoice_id=invoice_id,
+        activity_type=activity_type,
+        title=title,
+        body=body,
+        payload_json=payload_json,
+    )
+    db_session.add(activity)
+    db_session.commit()
+    db_session.refresh(activity)
+    return activity

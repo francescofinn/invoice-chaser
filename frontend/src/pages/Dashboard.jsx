@@ -4,6 +4,7 @@ import { useInvoices } from '../api/invoices'
 import SummaryCards from '../components/SummaryCards'
 import CashFlowChart from '../components/CashFlowChart'
 import InvoiceTable from '../components/InvoiceTable'
+import OperatorPanel from '../components/operator/OperatorPanel'
 
 export default function Dashboard() {
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useDashboardSummary()
@@ -49,6 +50,8 @@ export default function Dashboard() {
       <SummaryCards summary={summary} />
 
       <CashFlowChart data={summary.cash_flow_forecast} />
+
+      <OperatorPanel />
 
       <div className="bg-white border border-gray-200 rounded-lg p-5">
         <div className="flex justify-between items-center mb-4">

@@ -1,16 +1,15 @@
-from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from constants import OUTSTANDING_INVOICE_STATUSES
 from database import get_db
 from models import Invoice, Payment
-from schemas import CashFlowForecastItem, DashboardSummary
-from utils import calculate_invoice_total
+from schemas import DashboardSummary
+from services.collections import build_cash_flow_forecast, calculate_remaining_amount
 
 router = APIRouter()
 
@@ -22,20 +21,16 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
 
     outstanding_invoices = db.scalars(
         select(Invoice)
-        .options(joinedload(Invoice.payments))
+        .options(joinedload(Invoice.payments), selectinload(Invoice.collection_commitments))
         .where(Invoice.status.in_(OUTSTANDING_INVOICE_STATUSES))
     ).unique().all()
 
     total_outstanding = sum(
-        (calculate_invoice_total(invoice.line_items) for invoice in outstanding_invoices),
+        (calculate_remaining_amount(invoice) for invoice in outstanding_invoices),
         Decimal("0.00"),
     ).quantize(Decimal("0.01"))
     total_overdue = sum(
-        (
-            calculate_invoice_total(invoice.line_items)
-            for invoice in outstanding_invoices
-            if invoice.due_date < today
-        ),
+        (calculate_remaining_amount(invoice) for invoice in outstanding_invoices if invoice.due_date < today),
         Decimal("0.00"),
     ).quantize(Decimal("0.01"))
 
@@ -49,28 +44,12 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         db.execute(select(Invoice.status, func.count(Invoice.id)).group_by(Invoice.status)).all()
     )
 
-    forecast_rows = db.scalars(
-        select(Invoice).where(
-            Invoice.status.in_(("sent", "viewed", "partially_paid")),
-            Invoice.due_date >= today,
-            Invoice.due_date <= ninety_days_out,
-        )
-    ).all()
-
-    grouped_forecast: dict[date, dict] = defaultdict(lambda: {"expected_amount": Decimal("0.00"), "invoice_ids": []})
-    for invoice in forecast_rows:
-        forecast_entry = grouped_forecast[invoice.due_date]
-        forecast_entry["expected_amount"] += calculate_invoice_total(invoice.line_items)
-        forecast_entry["invoice_ids"].append(invoice.id)
-
-    cash_flow_forecast = [
-        CashFlowForecastItem(
-            date=forecast_date,
-            expected_amount=float(values["expected_amount"]),
-            invoice_ids=values["invoice_ids"],
-        )
-        for forecast_date, values in sorted(grouped_forecast.items(), key=lambda item: item[0])
+    forecast_rows = [
+        invoice
+        for invoice in outstanding_invoices
+        if invoice.due_date <= ninety_days_out or invoice.collection_commitments
     ]
+    cash_flow_forecast = build_cash_flow_forecast(forecast_rows, today=today)
 
     return DashboardSummary(
         total_outstanding=total_outstanding,
