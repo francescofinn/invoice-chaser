@@ -8,16 +8,14 @@ Automated accounts receivable for freelancers and small business owners. Send in
 - Client payment portal (no login) with Stripe card payments
 - Automated follow-up emails at day 3, 7, and 14 after due date — AI-generated with escalating tone
 - Dashboard with outstanding/overdue totals, cash flow forecast, and late payment risk indicators
+- Admin UI protected by Clerk authentication
 
 ## Prerequisites
 
 - Python 3.11+
 - Node 18+
-- PostgreSQL 15+
 - [Stripe CLI](https://stripe.com/docs/stripe-cli) (for local webhook forwarding)
-- Stripe account (test mode is fine)
-- [Resend](https://resend.com) account with a verified sending domain
-- Anthropic API key
+- Accounts needed: [Neon](https://neon.tech) · [Stripe](https://stripe.com) · [Resend](https://resend.com) · [Clerk](https://clerk.com) · [Anthropic](https://console.anthropic.com)
 
 ## Setup
 
@@ -27,16 +25,32 @@ Automated accounts receivable for freelancers and small business owners. Send in
 git clone <repo-url>
 cd invoice-chaser
 cp .env.example .env
-# Edit .env and fill in all values
+# Edit .env and fill in all values (see comments in .env.example)
 ```
 
-For the frontend, also create `frontend/.env`:
+**Frontend env** — create `frontend/.env`:
 ```
 VITE_API_URL=http://localhost:8000
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
-### 2. Backend
+### 2. Neon database
+
+1. Create a project at [console.neon.tech](https://console.neon.tech)
+2. Copy the **pooled** connection string → paste as `DATABASE_URL` in `.env`
+3. For Alembic migrations, also set `DIRECT_DATABASE_URL` to the **direct** (non-pooled) connection string
+
+### 3. Clerk auth
+
+1. Create an application at [dashboard.clerk.com](https://dashboard.clerk.com)
+2. From **API Keys**: copy **Publishable key** → `VITE_CLERK_PUBLISHABLE_KEY` in `frontend/.env`
+3. From **API Keys**: copy **Secret key** → `CLERK_SECRET_KEY` in `.env`
+4. From **API Keys**: find your **Clerk domain** (e.g. `your-app.clerk.accounts.dev`)
+5. Set `CLERK_JWKS_URL=https://your-app.clerk.accounts.dev/.well-known/jwks.json` in `.env`
+6. In Clerk Dashboard → **Paths**, set the sign-in URL to `/sign-in`
+
+### 4. Backend
 
 ```bash
 cd backend
@@ -44,10 +58,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Create the database
-createdb invoice_chaser
-
-# Run migrations
+# Run migrations (uses DIRECT_DATABASE_URL if set, else DATABASE_URL)
 alembic upgrade head
 
 # Seed sample data
@@ -57,9 +68,9 @@ python seed.py
 uvicorn main:app --reload --port 8000
 ```
 
-API docs available at: http://localhost:8000/docs
+API docs: http://localhost:8000/docs
 
-### 3. Frontend
+### 5. Frontend
 
 ```bash
 cd frontend
@@ -68,7 +79,7 @@ npm run dev
 # App available at http://localhost:5173
 ```
 
-### 4. Stripe webhook forwarding (local development)
+### 6. Stripe webhook forwarding (local development)
 
 In a separate terminal:
 
@@ -76,28 +87,35 @@ In a separate terminal:
 stripe listen --forward-to localhost:8000/webhooks/stripe
 ```
 
-Copy the webhook signing secret printed in the terminal output into `.env` as `STRIPE_WEBHOOK_SECRET`.
+Copy the webhook signing secret → `STRIPE_WEBHOOK_SECRET` in `.env`.
 
-Test payments use card number `4242 4242 4242 4242` with any future expiry and any CVC.
+Test payments: card `4242 4242 4242 4242`, any future expiry, any CVC.
 
-### 5. Resend setup
+### 7. Resend setup
 
-Update the `from` address in `backend/services/email.py` to a domain you have verified in your Resend account. See [Resend domain setup](https://resend.com/docs/dashboard/domains/introduction).
+Update the `from` address in `backend/services/email.py` to a domain verified in your Resend account. See [Resend domain setup](https://resend.com/docs/dashboard/domains/introduction).
 
 ## Project Structure
 
 ```
 invoice-chaser/
-├── backend/          # FastAPI API server
-│   ├── routers/      # API route handlers
-│   └── services/     # Stripe, Resend, Claude, APScheduler
-└── frontend/         # React/Vite SPA
-    └── src/
-        ├── api/      # React Query hooks
-        ├── pages/    # Route-level components
-        └── components/
+├── backend/
+│   ├── auth.py           # Clerk JWT verification (FastAPI dependency)
+│   ├── routers/          # API route handlers
+│   └── services/         # Stripe, Resend, Claude, APScheduler
+├── frontend/
+│   └── src/
+│       ├── api/          # React Query hooks (auth-aware axios client)
+│       ├── pages/        # Route-level components
+│       └── components/
+└── docs/
+    ├── plan-backend.md   # Backend implementation guide
+    └── plan-frontend.md  # Frontend implementation guide
 ```
 
-## Security Note
+## Auth model
 
-The admin UI (`/`, `/invoices`, etc.) has **no authentication**. Do not expose this application to the public internet without adding an auth layer (e.g., OAuth2, Clerk, Auth0). The client payment portal at `/pay/:token` uses an unguessable UUID token for access control.
+- Admin UI (`/`, `/invoices`, etc.) requires Clerk sign-in → redirects to `/sign-in` if not authenticated
+- Every API request from the frontend sends a `Bearer <clerk-jwt>` header
+- Backend verifies the JWT against Clerk's JWKS endpoint (`backend/auth.py`)
+- Client payment portal at `/pay/:token` is **public** — no login required, uses an unguessable UUID token

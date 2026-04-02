@@ -1,4 +1,22 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
+import { UserButton, useUser } from '@clerk/clerk-react'
+
+function UserButtonRow() {
+  const { user } = useUser()
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <UserButton afterSignOutUrl="/sign-in" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-gray-700 truncate">
+          {user?.firstName || user?.emailAddresses?.[0]?.emailAddress || ''}
+        </p>
+        <p className="text-xs text-gray-400 truncate">
+          {user?.firstName ? user.emailAddresses?.[0]?.emailAddress : ''}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
@@ -33,8 +51,8 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-6 py-4 border-t border-gray-200">
-          <p className="text-xs text-gray-400">Invoice Chaser v0.1</p>
+        <div className="px-4 py-4 border-t border-gray-200">
+          <UserButtonRow />
         </div>
       </aside>
 

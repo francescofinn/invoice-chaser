@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import apiClient from './client'
+import { useApiClient } from './client'
 
 export function useDashboardSummary() {
+  const api = useApiClient()
   return useQuery({
     queryKey: ['dashboard', 'summary'],
-    queryFn: () => apiClient.get('/dashboard/summary').then((r) => r.data),
+    queryFn: () => api.get('/dashboard/summary').then((r) => r.data),
     staleTime: 60_000,
     refetchInterval: 60_000,
   })

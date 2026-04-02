@@ -6,8 +6,9 @@ This doc covers everything in `backend/`. The frontend developer works in `front
 ---
 
 ## Stack
-- Python 3.11+, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL
+- Python 3.11+, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL (Neon)
 - Stripe SDK, Resend SDK, Anthropic SDK, APScheduler
+- Clerk (JWT verification via python-jose)
 
 ---
 
@@ -26,6 +27,7 @@ backend/
 │   ├── env.py
 │   └── versions/
 │       └── 0001_initial.py
+├── auth.py                  # Clerk JWT verification dependency
 ├── routers/
 │   ├── __init__.py
 │   ├── clients.py
@@ -46,13 +48,22 @@ backend/
 Create `.env` from `.env.example` in the repo root:
 
 ```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/invoice_chaser
+# Neon — use the "pooled" connection string (Session mode)
+DATABASE_URL=postgresql+psycopg2://user:password@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require
+
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 RESEND_API_KEY=re_...
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Clerk
+CLERK_SECRET_KEY=sk_test_...
+CLERK_JWKS_URL=https://your-clerk-domain.clerk.accounts.dev/.well-known/jwks.json
+
 FRONTEND_URL=http://localhost:5173
 ```
+
+**Neon note**: Use the *pooled* connection string (Session mode) for the app. If you run Alembic migrations, use the *direct* (unpooled) URL to avoid prepared statement conflicts — set it as `DIRECT_DATABASE_URL` and use it only in `alembic/env.py`.
 
 ---
 
@@ -72,7 +83,85 @@ anthropic==0.26.0
 apscheduler==3.10.4
 python-dotenv==1.0.1
 httpx==0.27.0
+python-jose[cryptography]==3.3.0
+cachetools==5.3.3
 ```
+
+---
+
+## `auth.py` — Clerk JWT Verification
+
+FastAPI dependency that verifies Clerk JWTs on every protected request. JWKS is cached for 1 hour to avoid fetching on every request.
+
+**Which endpoints are protected**: all admin routers (`clients`, `invoices`, `dashboard`).
+**Which stay public**: `GET /invoices/public/{token}` and `POST /webhooks/stripe`.
+
+```python
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+import httpx
+from cachetools import TTLCache
+from database import settings
+
+security = HTTPBearer()
+_jwks_cache: TTLCache = TTLCache(maxsize=1, ttl=3600)  # cache for 1 hour
+
+def _get_jwks() -> dict:
+    if "jwks" in _jwks_cache:
+        return _jwks_cache["jwks"]
+    response = httpx.get(settings.clerk_jwks_url, timeout=10)
+    response.raise_for_status()
+    jwks = response.json()
+    _jwks_cache["jwks"] = jwks
+    return jwks
+
+async def require_auth(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    """Returns the decoded JWT claims. Raises 401 on any failure."""
+    token = credentials.credentials
+    try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+
+        jwks = _get_jwks()
+        signing_key = next(
+            (k for k in jwks.get("keys", []) if k.get("kid") == kid), None
+        )
+        if not signing_key:
+            raise HTTPException(status_code=401, detail="Signing key not found")
+
+        payload = jwt.decode(
+            token,
+            signing_key,
+            algorithms=["RS256"],
+            options={"verify_aud": False},  # Clerk doesn't set aud by default
+        )
+        return payload
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+```
+
+**Add to `Settings` in `database.py`**:
+```python
+clerk_secret_key: str
+clerk_jwks_url: str
+```
+
+**Apply to routers** — add `Depends(require_auth)` to each admin router. Example:
+```python
+from auth import require_auth
+from fastapi import Depends
+
+router = APIRouter()
+
+@router.get("/", response_model=List[ClientResponse])
+def list_clients(db: Session = Depends(get_db), _=Depends(require_auth)):
+    ...
+```
+
+The `_=Depends(require_auth)` pattern discards the claims (you don't need to use the user ID for single-user apps). If you later add multi-tenancy, replace `_` with `claims` and filter queries by `claims["sub"]`.
 
 ---
 
