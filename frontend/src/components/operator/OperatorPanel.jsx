@@ -319,14 +319,14 @@ export default function OperatorPanel() {
         </div>
       </div>
 
-      <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="border-b border-slate-200 bg-slate-50/70 lg:border-b-0 lg:border-r">
-          <div className="px-5 py-4">
+      <div className="grid gap-0 lg:items-start lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="border-b border-slate-200 bg-slate-50/70 lg:sticky lg:top-6 lg:max-h-[calc(100vh-9rem)] lg:self-start lg:overflow-hidden lg:border-b-0 lg:border-r">
+          <div className="px-5 py-4 lg:flex lg:max-h-[calc(100vh-9rem)] lg:flex-col">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-slate-900">Prioritized Queue</h4>
               <span className="text-xs text-slate-500">Server-ranked</span>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
               {operatorCases.map((item) => {
                 const isSelected = item.invoice.id === selectedCase.invoice.id
                 return (
