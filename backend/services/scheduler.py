@@ -95,6 +95,10 @@ def send_overdue_follow_ups() -> int:
                     content["subject"],
                     content["body"],
                     payment_link,
+                    invoice_number=invoice.invoice_number,
+                    amount=str(amount_due),
+                    due_date=invoice.due_date.isoformat(),
+                    is_overdue=True,
                 )
                 db.commit()
                 sent_count += 1

@@ -87,7 +87,7 @@ def _compose_initial_email(invoice: Invoice) -> tuple[str, str]:
 
 @router.get("", response_model=list[InvoiceResponse])
 def list_invoices(status_filter: str | None = Query(default=None, alias="status"), db: Session = Depends(get_db)):
-    statement = select(Invoice).options(joinedload(Invoice.client)).order_by(Invoice.id)
+    statement = select(Invoice).options(joinedload(Invoice.client)).order_by(Invoice.due_date.desc())
     if status_filter is not None:
         try:
             validate_invoice_status(status_filter)
@@ -171,7 +171,16 @@ def send_invoice(invoice_id: int, db: Session = Depends(get_db)):
 
     payment_link = build_payment_link(settings.frontend_url, invoice.token)
     subject, body = _compose_initial_email(invoice)
-    send_invoice_email(invoice.client.email, subject, body, payment_link)
+    send_invoice_email(
+        invoice.client.email,
+        subject,
+        body,
+        payment_link,
+        invoice_number=invoice.invoice_number,
+        amount=str(total),
+        due_date=invoice.due_date.isoformat(),
+        is_overdue=False,
+    )
 
     db.add(
         EmailLog(
